@@ -1,0 +1,50 @@
+@import 'tailwindcss/base';
+@import 'tailwindcss/components';
+@import 'tailwindcss/utilities';
+
+@layer base {
+  body {
+    @apply bg-slate-900 text-white;
+  }
+  
+  input, textarea, select {
+    @apply transition;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg font-semibold transition;
+  }
+  
+  .btn-secondary {
+    @apply px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg font-semibold transition;
+  }
+  
+  .card {
+    @apply bg-slate-800/50 border border-slate-700 rounded-lg p-6;
+  }
+}
+
+/* Smooth scrolling */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #0f172a;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #475569;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #64748b;
+}
