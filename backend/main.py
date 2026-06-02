@@ -2,8 +2,8 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 import logging
-from backend.config import settings
-from backend.routes import documents, analysis, generation
+from config import settings
+from routes import documents, analysis, generation
 
 # Configure logging
 logging.basicConfig(

@@ -1,56 +1,238 @@
 """
-API analysis routes - endpoint extraction, auth detection
-Implementation: Days 2-3
+API Analysis Routes
+- Extract endpoints
+- Detect authentication
+- Analyze security
+- Generate summaries
 """
 
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
+from typing import Optional, Dict, List
+from pydantic import BaseModel
+
+from services.api_analyzer import (
+    extract_endpoints,
+    extract_parameters,
+    detect_auth_method,
+    extract_response_format,
+    analyze_endpoint_security,
+    generate_endpoint_summary
+)
 
 router = APIRouter()
 
 
+class AnalysisRequest(BaseModel):
+    """Request model for API analysis"""
+    documentation: str
+    url: Optional[str] = None
+
+
 @router.post("/extract-endpoints")
-async def extract_endpoints(documentation: str):
+async def extract_endpoints_route(documentation: str) -> Dict:
     """
-    Extract API endpoints from documentation
-    Implementation: Day 2
+    Extract API endpoints from documentation text
+    
+    Returns endpoints with:
+    - HTTP method (GET, POST, etc)
+    - Path (/users, /users/{id}, etc)
+    - Description
     """
-    return {
-        "status": "pending",
-        "message": "Endpoint extraction - coming Day 2",
-        "endpoints_found": 0
-    }
+    try:
+        if not documentation or len(documentation) < 10:
+            raise HTTPException(
+                status_code=400,
+                detail="Documentation text is too short (minimum 10 characters)"
+            )
+        
+        endpoints = extract_endpoints(documentation)
+        summary = generate_endpoint_summary(endpoints)
+        
+        return {
+            "status": "success",
+            "endpoints_found": len(endpoints),
+            "endpoints": endpoints[:20],  # Return first 20
+            "summary": summary,
+            "message": f"Found {len(endpoints)} endpoints in documentation"
+        }
+    
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error extracting endpoints: {str(e)}"
+        )
 
 
 @router.post("/detect-auth")
-async def detect_authentication(documentation: str):
+async def detect_authentication_route(documentation: str) -> Dict:
     """
     Detect authentication method from documentation
-    Implementation: Day 3
+    
+    Can identify:
+    - Bearer Token
+    - API Key
+    - OAuth 2.0
+    - Basic Auth
+    - JWT
+    - AWS Signature
+    - No Auth (Public API)
     """
-    return {
-        "status": "pending",
-        "message": "Auth detection - coming Day 3",
-        "auth_methods": []
-    }
+    try:
+        if not documentation or len(documentation) < 10:
+            raise HTTPException(
+                status_code=400,
+                detail="Documentation text is too short"
+            )
+        
+        auth_info = detect_auth_method(documentation)
+        
+        return {
+            "status": "success",
+            "primary_auth": auth_info['primary'],
+            "auth_methods": auth_info['methods'],
+            "confidence": auth_info['confidence'],
+            "message": f"Detected {auth_info['primary']} authentication"
+        }
+    
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error detecting authentication: {str(e)}"
+        )
+
+
+@router.post("/analyze-response-format")
+async def analyze_response_format_route(documentation: str) -> Dict:
+    """
+    Identify response format from documentation
+    
+    Can identify:
+    - JSON
+    - XML
+    - HTML
+    - Plain Text
+    - CSV
+    """
+    try:
+        if not documentation or len(documentation) < 10:
+            raise HTTPException(
+                status_code=400,
+                detail="Documentation text is too short"
+            )
+        
+        response_format = extract_response_format(documentation)
+        
+        return {
+            "status": "success",
+            "primary_format": response_format['primary'],
+            "supported_formats": response_format['formats'],
+            "content_types": response_format['content_types'],
+            "message": f"Primary response format: {response_format['primary']}"
+        }
+    
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error analyzing response format: {str(e)}"
+        )
+
+
+@router.post("/analyze-security")
+async def analyze_security_route(documentation: str) -> Dict:
+    """
+    Analyze security aspects of API
+    
+    Checks for:
+    - Rate limiting
+    - HTTPS requirement
+    - Authentication requirement
+    - CORS configuration
+    """
+    try:
+        if not documentation or len(documentation) < 10:
+            raise HTTPException(
+                status_code=400,
+                detail="Documentation text is too short"
+            )
+        
+        security = analyze_endpoint_security(documentation)
+        
+        return {
+            "status": "success",
+            "security_analysis": security,
+            "security_score": sum(security.values()) / len(security),
+            "message": "Security analysis complete"
+        }
+    
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error analyzing security: {str(e)}"
+        )
 
 
 @router.post("/analyze-full")
-async def analyze_full(documentation: str, url: Optional[str] = None):
+async def analyze_full_route(request: AnalysisRequest) -> Dict:
     """
     Complete API analysis pipeline
-    - Extract endpoints
-    - Detect authentication
-    - Identify parameters
-    - Extract response formats
-    Implementation: Day 2-3
+    
+    Performs:
+    1. Endpoint extraction
+    2. Parameter identification
+    3. Authentication detection
+    4. Response format analysis
+    5. Security assessment
+    6. Summary generation
     """
-    return {
-        "status": "pending",
-        "message": "Full analysis pipeline - coming Day 2-3",
-        "analysis": {
-            "endpoints": [],
-            "authentication": {},
-            "parameters": [],
-            "response_formats": []
+    try:
+        documentation = request.documentation
+        
+        if not documentation or len(documentation) < 10:
+            raise HTTPException(
+                status_code=400,
+                detail="Documentation text is too short"
+            )
+        
+        # Extract endpoints
+        endpoints = extract_endpoints(documentation)
+        
+        # Detect auth
+        auth_info = detect_auth_method(documentation)
+        
+        # Analyze response format
+        response_format = extract_response_format(documentation)
+        
+        # Analyze security
+        security = analyze_endpoint_security(documentation)
+        
+        # Generate summary
+        summary = generate_endpoint_summary(endpoints)
+        
+        return {
+            "status": "success",
+            "source_url": request.url,
+            "analysis": {
+                "endpoints": {
+                    "found": len(endpoints),
+                    "data": endpoints[:10],
+                    "summary": summary
+                },
+                "authentication": {
+                    "primary": auth_info['primary'],
+                    "methods": auth_info['methods'],
+                    "confidence": auth_info['confidence']
+                },
+                "response_format": {
+                    "primary": response_format['primary'],
+                    "formats": response_format['formats']
+                },
+                "security": security
+            },
+            "message": f"Complete analysis: {len(endpoints)} endpoints found, {auth_info['primary']} auth detected"
         }
-    }
+    
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error in full analysis: {str(e)}"
+        )

@@ -1,138 +1,268 @@
-import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { motion } from 'framer-motion'
+import { useState } from 'react';
+import { Upload, Link as LinkIcon, Loader } from 'lucide-react';
 
-export default function DocumentUpload() {
-  const navigate = useNavigate()
-  const [inputType, setInputType] = useState('url')
-  const [urlInput, setUrlInput] = useState('')
-  const [docInput, setDocInput] = useState('')
-  const [loading, setLoading] = useState(false)
+export default function DocumentUpload({ onAnalysisComplete }) {
+  const [loading, setLoading] = useState(false);
+  const [uploadMode, setUploadMode] = useState('file'); // 'file' or 'url'
+  const [file, setFile] = useState(null);
+  const [url, setUrl] = useState('');
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
 
-  const handleAnalyze = async () => {
-    if ((inputType === 'url' && !urlInput) || (inputType === 'text' && !docInput)) {
-      alert('Please provide input')
-      return
+  const handleFileChange = (e) => {
+    const selectedFile = e.target.files[0];
+    if (selectedFile) {
+      // Validate file size (max 10MB)
+      if (selectedFile.size > 10 * 1024 * 1024) {
+        setError('File size must be less than 10MB');
+        return;
+      }
+      
+      // Validate file type
+      const validTypes = ['application/pdf', 'text/plain', 'text/markdown', 'text/html', 'application/json'];
+      if (!validTypes.includes(selectedFile.type)) {
+        setError('File type not supported. Use PDF, TXT, MD, HTML, or JSON');
+        return;
+      }
+      
+      setFile(selectedFile);
+      setError('');
+    }
+  };
+
+  const handleFileUpload = async () => {
+    if (!file) {
+      setError('Please select a file');
+      return;
     }
 
-    setLoading(true)
+    setLoading(true);
+    setError('');
+    setSuccess('');
+
     try {
-      // TODO: Implement API call on Day 2
-      setTimeout(() => {
-        navigate('/workspace')
-      }, 1000)
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const response = await fetch('http://localhost:8000/api/documents/upload', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || 'Upload failed');
+      }
+
+      const data = await response.json();
+      setSuccess(`✅ ${data.message}`);
+      
+      // Trigger analysis
+      if (data.file_path) {
+        analyzeDocument(data.file_path, data.content_preview);
+      }
+
+      setFile(null);
+      document.querySelector('input[type="file"]').value = '';
+    } catch (err) {
+      setError(`❌ ${err.message}`);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
+
+  const handleUrlFetch = async () => {
+    if (!url.trim()) {
+      setError('Please enter a URL');
+      return;
+    }
+
+    setLoading(true);
+    setError('');
+    setSuccess('');
+
+    try {
+      const response = await fetch('http://localhost:8000/api/documents/fetch', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ url: url.trim() }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        const errorMsg = typeof errorData.detail === 'string' 
+          ? errorData.detail 
+          : JSON.stringify(errorData.detail) || 'Fetch failed';
+        throw new Error(errorMsg);
+      }
+
+      const data = await response.json();
+      setSuccess(`✅ ${data.message}`);
+      
+      // Trigger analysis
+      if (data.content_preview) {
+        analyzeDocument(data.url, data.content_preview);
+      }
+
+      setUrl('');
+    } catch (err) {
+      setError(`❌ ${err.message}`);
+      console.error('Fetch error:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const analyzeDocument = async (source, preview) => {
+    try {
+      const response = await fetch('http://localhost:8000/api/analysis/analyze-full', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          documentation: preview || '',
+          url: source,
+        }),
+      });
+
+      if (response.ok) {
+        const analysisData = await response.json();
+        onAnalysisComplete(analysisData);
+      }
+    } catch (err) {
+      console.error('Analysis error:', err);
+    }
+  };
 
   return (
-    <div className="space-y-6">
-      {/* Input Type Toggle */}
-      <div className="flex gap-2">
-        {['url', 'text', 'file'].map((type) => (
-          <button
-            key={type}
-            onClick={() => setInputType(type)}
-            className={`px-4 py-2 rounded-lg font-semibold transition ${
-              inputType === type
-                ? 'bg-blue-600 text-white'
-                : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
-            }`}
-          >
-            {type === 'url' && '🔗 URL'}
-            {type === 'text' && '📄 Paste Docs'}
-            {type === 'file' && '📁 Upload File'}
-          </button>
-        ))}
+    <div className="w-full max-w-2xl mx-auto bg-gradient-to-br from-slate-800 to-slate-900 rounded-lg shadow-2xl p-6 border border-slate-700">
+      {/* Title */}
+      <div className="mb-6">
+        <h2 className="text-2xl font-bold text-white mb-2">📚 Import API Documentation</h2>
+        <p className="text-slate-400">Upload a file or provide a URL to your API documentation</p>
       </div>
 
-      {/* URL Input */}
-      {inputType === 'url' && (
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+      {/* Mode Selector */}
+      <div className="flex gap-4 mb-6">
+        <button
+          onClick={() => setUploadMode('file')}
+          className={`flex-1 py-3 px-4 rounded-lg font-semibold transition-all ${
+            uploadMode === 'file'
+              ? 'bg-blue-600 text-white shadow-lg'
+              : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+          }`}
+        >
+          <Upload className="inline mr-2" size={18} />
+          Upload File
+        </button>
+        <button
+          onClick={() => setUploadMode('url')}
+          className={`flex-1 py-3 px-4 rounded-lg font-semibold transition-all ${
+            uploadMode === 'url'
+              ? 'bg-blue-600 text-white shadow-lg'
+              : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+          }`}
+        >
+          <LinkIcon className="inline mr-2" size={18} />
+          Fetch from URL
+        </button>
+      </div>
+
+      {/* File Upload Mode */}
+      {uploadMode === 'file' && (
+        <div className="space-y-4">
+          <div className="border-2 border-dashed border-slate-600 rounded-lg p-8 text-center hover:border-blue-500 transition-colors cursor-pointer">
+            <input
+              type="file"
+              accept=".pdf,.txt,.md,.html,.json"
+              onChange={handleFileChange}
+              className="hidden"
+              id="file-input"
+            />
+            <label htmlFor="file-input" className="cursor-pointer block">
+              <Upload className="mx-auto mb-2 text-slate-400" size={32} />
+              <p className="text-white font-semibold">Click to upload or drag and drop</p>
+              <p className="text-slate-400 text-sm mt-1">Supports: PDF, TXT, MD, HTML, JSON (max 10MB)</p>
+              {file && (
+                <p className="text-blue-400 mt-2 font-semibold">📄 {file.name}</p>
+              )}
+            </label>
+          </div>
+          <button
+            onClick={handleFileUpload}
+            disabled={!file || loading}
+            className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-slate-600 text-white font-bold py-3 px-4 rounded-lg transition-colors"
+          >
+            {loading ? (
+              <>
+                <Loader className="inline mr-2 animate-spin" size={18} />
+                Uploading...
+              </>
+            ) : (
+              'Upload Document'
+            )}
+          </button>
+        </div>
+      )}
+
+      {/* URL Fetch Mode */}
+      {uploadMode === 'url' && (
+        <div className="space-y-4">
           <input
             type="url"
-            placeholder="Paste API documentation URL (e.g., https://stripe.com/docs/api)"
-            value={urlInput}
-            onChange={(e) => setUrlInput(e.target.value)}
-            className="w-full px-4 py-3 rounded-lg bg-slate-700 border border-slate-600 text-white placeholder-slate-400 focus:outline-none focus:border-blue-500"
+            placeholder="https://docs.github.com/en/rest"
+            value={url}
+            onChange={(e) => setUrl(e.target.value)}
+            className="w-full px-4 py-3 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:border-blue-500"
           />
-        </motion.div>
-      )}
-
-      {/* Text Input */}
-      {inputType === 'text' && (
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-          <textarea
-            placeholder="Paste your API documentation here..."
-            value={docInput}
-            onChange={(e) => setDocInput(e.target.value)}
-            rows={8}
-            className="w-full px-4 py-3 rounded-lg bg-slate-700 border border-slate-600 text-white placeholder-slate-400 focus:outline-none focus:border-blue-500 resize-none"
-          />
-        </motion.div>
-      )}
-
-      {/* File Upload */}
-      {inputType === 'file' && (
-        <motion.div 
-          initial={{ opacity: 0 }} 
-          animate={{ opacity: 1 }}
-          className="border-2 border-dashed border-slate-600 rounded-lg p-8 text-center cursor-pointer hover:border-blue-500 transition"
-        >
-          <div className="text-3xl mb-2">📤</div>
-          <p className="text-slate-300">Drag and drop or click to upload</p>
-          <p className="text-sm text-slate-400">PDF, Markdown, or text files</p>
-        </motion.div>
-      )}
-
-      {/* Options */}
-      <div className="bg-slate-700/50 rounded-lg p-4 space-y-3">
-        <div>
-          <label className="block text-sm font-semibold mb-2">Use Case (optional)</label>
-          <input
-            type="text"
-            placeholder="e.g., Process payments, Authenticate users..."
-            className="w-full px-3 py-2 rounded bg-slate-600 border border-slate-500 text-white placeholder-slate-400 focus:outline-none focus:border-blue-500"
-          />
+          <p className="text-slate-400 text-sm">
+            Enter the URL of the API documentation you want to analyze
+          </p>
+          <button
+            onClick={handleUrlFetch}
+            disabled={!url.trim() || loading}
+            className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-slate-600 text-white font-bold py-3 px-4 rounded-lg transition-colors"
+          >
+            {loading ? (
+              <>
+                <Loader className="inline mr-2 animate-spin" size={18} />
+                Fetching...
+              </>
+            ) : (
+              'Fetch & Analyze'
+            )}
+          </button>
         </div>
-        <div>
-          <label className="block text-sm font-semibold mb-2">Preferred Language</label>
-          <select className="w-full px-3 py-2 rounded bg-slate-600 border border-slate-500 text-white focus:outline-none focus:border-blue-500">
-            <option>Python</option>
-            <option>JavaScript</option>
-            <option>TypeScript</option>
-            <option>Go</option>
-            <option>Java</option>
-          </select>
+      )}
+
+      {/* Messages */}
+      {error && (
+        <div className="mt-4 p-4 bg-red-900/20 border border-red-700 rounded-lg text-red-300">
+          {error}
         </div>
+      )}
+
+      {success && (
+        <div className="mt-4 p-4 bg-green-900/20 border border-green-700 rounded-lg text-green-300">
+          {success}
+        </div>
+      )}
+
+      {/* Info */}
+      <div className="mt-6 pt-6 border-t border-slate-700 text-slate-400 text-sm">
+        <p className="font-semibold text-white mb-2">📋 Supported Formats:</p>
+        <ul className="list-disc list-inside space-y-1">
+          <li>GitHub API Documentation</li>
+          <li>Swagger/OpenAPI specs (JSON/YAML)</li>
+          <li>Markdown documentation</li>
+          <li>HTML pages</li>
+          <li>Plain text files</li>
+        </ul>
       </div>
-
-      {/* Analyze Button */}
-      <motion.button
-        onClick={handleAnalyze}
-        disabled={loading}
-        whileHover={{ scale: 1.02 }}
-        whileTap={{ scale: 0.98 }}
-        className="w-full px-6 py-4 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 disabled:from-slate-600 disabled:to-slate-700 rounded-lg font-semibold text-lg transition flex items-center justify-center gap-2"
-      >
-        {loading ? (
-          <>
-            <motion.div
-              animate={{ rotate: 360 }}
-              transition={{ duration: 1, repeat: Infinity }}
-              className="w-5 h-5 border-2 border-white border-t-transparent rounded-full"
-            />
-            Analyzing...
-          </>
-        ) : (
-          <>🚀 Analyze API Documentation</>
-        )}
-      </motion.button>
-
-      <p className="text-sm text-slate-400 text-center">
-        Takes 2-3 seconds to analyze and extract endpoints
-      </p>
     </div>
-  )
+  );
 }
+

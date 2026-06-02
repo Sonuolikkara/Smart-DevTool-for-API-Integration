@@ -1,0 +1,63 @@
+version: '3.8'
+
+services:
+  # Ollama LLM Service
+  ollama:
+    image: ollama/ollama:latest
+    container_name: smartdevtool-ollama
+    ports:
+      - "11434:11434"
+    environment:
+      - OLLAMA_PULL_TIMEOUT=300
+    volumes:
+      - ollama_data:/root/.ollama
+    command: serve
+    networks:
+      - smartdevtool-network
+
+  # FastAPI Backend
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: smartdevtool-backend
+    ports:
+      - "8000:8000"
+    environment:
+      - OLLAMA_BASE_URL=http://ollama:11434
+      - API_HOST=0.0.0.0
+      - API_PORT=8000
+      - CORS_ORIGINS=["http://localhost:5173", "http://localhost:3000"]
+    volumes:
+      - ./backend:/app/backend
+      - chromadb_data:/app/chromadb
+    depends_on:
+      - ollama
+    networks:
+      - smartdevtool-network
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+
+  # React Frontend (development)
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    container_name: smartdevtool-frontend
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app/frontend
+      - /app/frontend/node_modules
+    depends_on:
+      - backend
+    networks:
+      - smartdevtool-network
+    command: npm run dev
+
+volumes:
+  ollama_data:
+  chromadb_data:
+
+networks:
+  smartdevtool-network:
+    driver: bridge
