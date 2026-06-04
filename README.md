@@ -2,8 +2,6 @@
 
 > **Auto-generate SDK wrappers and integration code from any API documentation in 30 seconds.**
 
-![Dashboard](screenshots/home.png)
-
 ## 🎯 Problem Statement
 
 API integration is **time-consuming and repetitive:**
@@ -149,22 +147,6 @@ Output:
 | **Web Scraping** | BeautifulSoup, Playwright |
 | **State Management** | Zustand (React) |
 | **Task Runner** | Vite (frontend), Uvicorn (backend) |
-
----
-
-## 🖼️ Screenshots
-
-### Home Page - Problem/Solution Overview
-![Home](screenshots/home.png)
-
-### API Analysis - Endpoint Extraction
-![Analyzer](screenshots/analyzer.png)
-
-### Code Generation - Multi-Language Support
-![Code Generation](screenshots/code_generation.png)
-
-### Generated Code - Production-Ready
-![Generated Code](screenshots/generated_code.png)
 
 ---
 
@@ -346,27 +328,6 @@ Contributions are welcome! Please read [CONTRIBUTING.md](CONTRIBUTING.md) for gu
 ## 📄 License
 
 MIT License - See LICENSE file for details
-
----
-
-## 👥 Team
-
-- **Sonu Olikkara** — Full Stack Engineer
-
----
-
-## 🎯 Project Context
-
-**Built for:** Claysys AI Hackathon 2024 (Interview Track)
-
-**Evaluation Criteria:**
-- ✅ Engineering process over AI accuracy
-- ✅ Polish and UX over perfect AI reasoning
-- ✅ Clear business value demonstration
-- ✅ Technical depth and innovation
-- ✅ Offline/privacy-first positioning
-
-**Status:** 🚀 In Active Development (Day 1 ✅)
 
 ---
 
