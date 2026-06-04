@@ -1,35 +1,35 @@
 # Core Framework
-fastapi==0.104.1
-uvicorn[standard]==0.24.0
-pydantic==2.5.0
-pydantic-settings==2.1.0
+fastapi
+uvicorn[standard]
+pydantic
+pydantic-settings
 
 # Async HTTP
-aiohttp==3.9.1
-httpx==0.25.2
+aiohttp
+httpx
 
 # Web Scraping
-beautifulsoup4==4.12.2
-playwright==1.40.0
-requests==2.31.0
+beautifulsoup4
+playwright
+requests
 
 # AI/ML Stack
-langchain==0.1.1
-langchain-community==0.0.6
-ollama==0.1.0
-chromadb==0.4.14
+# langchain
+# langchain-community
+# ollama
+# chromadb
 
 # Code Processing
-pyyaml==6.0.1
-jsonschema==4.20.0
+pyyaml
+jsonschema
 
 # Utilities
-python-dotenv==1.0.0
-pytz==2023.3.post1
+python-dotenv
+pytz
 
 # Development
-pytest==7.4.3
-pytest-asyncio==0.21.1
-black==23.12.0
-flake8==6.1.0
-mypy==1.7.1
+pytest
+pytest-asyncio
+black
+flake8
+mypy
