@@ -21,13 +21,28 @@ async def fetch_documentation(url: str) -> str:
     Returns:
         Raw HTML content
     """
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+                      "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        "Accept-Language": "en-US,en;q=0.9",
+        "Cache-Control": "no-cache",
+    }
+
+    last_error = None
+    timeout = aiohttp.ClientTimeout(total=30)
+
     try:
-        async with aiohttp.ClientSession() as session:
-            async with session.get(url, timeout=aiohttp.ClientTimeout(total=30)) as response:
-                if response.status == 200:
-                    return await response.text()
-                else:
-                    raise Exception(f"Failed to fetch: HTTP {response.status}")
+        async with aiohttp.ClientSession(headers=headers) as session:
+            for _ in range(2):
+                try:
+                    async with session.get(url, timeout=timeout, allow_redirects=True) as response:
+                        if response.status == 200:
+                            return await response.text()
+                        last_error = f"Failed to fetch: HTTP {response.status}"
+                except Exception as e:
+                    last_error = str(e)
+        raise Exception(last_error or "Unknown fetch error")
     except Exception as e:
         raise Exception(f"Error fetching documentation: {str(e)}")
 

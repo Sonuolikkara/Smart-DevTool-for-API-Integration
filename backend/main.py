@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 import logging
 from config import settings
-from routes import documents, analysis, generation
+from routes import documents, analysis, generation, history
 
 # Configure logging
 logging.basicConfig(
@@ -42,6 +42,7 @@ app.add_middleware(
 app.include_router(documents.router, prefix="/api/documents", tags=["documents"])
 app.include_router(analysis.router, prefix="/api/analysis", tags=["analysis"])
 app.include_router(generation.router, prefix="/api/generation", tags=["generation"])
+app.include_router(history.router, prefix="/api/history", tags=["history"])
 
 
 @app.get("/", tags=["health"])
@@ -117,7 +118,7 @@ async def generate_code(
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(
-        "backend.main:app",
+        "main:app",
         host="0.0.0.0",
         port=8000,
         reload=True,

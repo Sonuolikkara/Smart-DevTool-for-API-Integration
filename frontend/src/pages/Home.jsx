@@ -1,18 +1,69 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
+import { Loader } from 'lucide-react'
 import DocumentUpload from '../components/DocumentUpload'
 
 export default function Home() {
   const navigate = useNavigate()
   const [activeTab, setActiveTab] = useState('upload')
+  const [loadingExample, setLoadingExample] = useState(null)
 
   const exampleAPIs = [
-    { name: 'Stripe API', color: 'from-blue-500 to-blue-600' },
-    { name: 'GitHub API', color: 'from-gray-700 to-gray-800' },
-    { name: 'Twilio API', color: 'from-red-500 to-red-600' },
-    { name: 'OpenAI API', color: 'from-green-500 to-green-600' },
+    { name: 'Stripe API', url: 'https://stripe.com/docs/api', color: 'from-blue-500 to-blue-600' },
+    { name: 'GitHub API', url: 'https://docs.github.com/en/rest', color: 'from-gray-700 to-gray-800' },
+    { name: 'Twilio API', url: 'https://www.twilio.com/docs/api', color: 'from-red-500 to-red-600' },
+    { name: 'OpenAI API', url: 'https://platform.openai.com/docs/api-reference', color: 'from-green-500 to-green-600' },
   ]
+
+  const handleExampleAPI = async (apiName, url) => {
+    setLoadingExample(apiName)
+    const fetchController = new AbortController()
+    const fetchTimeoutId = setTimeout(() => fetchController.abort(), 25000)
+
+    try {
+      const response = await fetch('http://localhost:8000/api/documents/fetch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url }),
+        signal: fetchController.signal,
+      })
+
+      if (!response.ok) throw new Error('Fetch failed')
+      const data = await response.json()
+
+      // Trigger analysis
+      const analysisController = new AbortController()
+      const analysisTimeoutId = setTimeout(() => analysisController.abort(), 20000)
+
+      const analysisResponse = await fetch('http://localhost:8000/api/analysis/analyze-full', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          documentation: data.content_preview || '',
+          url: url,
+        }),
+        signal: analysisController.signal,
+      })
+
+      if (analysisResponse.ok) {
+        const analysisData = await analysisResponse.json()
+        navigate('/results', { state: { analysis: { ...analysisData, source: url } } })
+      } else {
+        const errorData = await analysisResponse.json()
+        throw new Error(errorData.detail || 'Analysis failed')
+      }
+    } catch (err) {
+      const message = err.name === 'AbortError'
+        ? 'Request timed out. Try a smaller or different URL.'
+        : err.message
+      console.error('Error:', err)
+      alert(`Failed to analyze API. ${message}`)
+    } finally {
+      clearTimeout(fetchTimeoutId)
+      setLoadingExample(null)
+    }
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white">
@@ -118,11 +169,20 @@ export default function Home() {
             {exampleAPIs.map((api, idx) => (
               <motion.button
                 key={idx}
-                className={`bg-gradient-to-br ${api.color} rounded-lg p-6 font-semibold hover:shadow-lg transition`}
+                onClick={() => handleExampleAPI(api.name, api.url)}
+                disabled={loadingExample === api.name}
+                className={`bg-gradient-to-br ${api.color} rounded-lg p-6 font-semibold hover:shadow-lg transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2`}
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
               >
-                {api.name}
+                {loadingExample === api.name ? (
+                  <>
+                    <Loader size={18} className="animate-spin" />
+                    Loading...
+                  </>
+                ) : (
+                  api.name
+                )}
               </motion.button>
             ))}
           </div>

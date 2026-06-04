@@ -2,6 +2,8 @@ import { Routes, Route } from 'react-router-dom'
 import Home from './pages/Home'
 import Workspace from './pages/Workspace'
 import History from './pages/History'
+import Results from './pages/Results'
+import CodeGen from './pages/CodeGen'
 
 function App() {
   return (
@@ -10,6 +12,8 @@ function App() {
         <Route path="/" element={<Home />} />
         <Route path="/workspace" element={<Workspace />} />
         <Route path="/history" element={<History />} />
+        <Route path="/results" element={<Results />} />
+        <Route path="/codegen" element={<CodeGen />} />
       </Routes>
     </div>
   )

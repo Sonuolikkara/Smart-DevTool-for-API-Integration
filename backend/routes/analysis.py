@@ -18,8 +18,10 @@ from services.api_analyzer import (
     analyze_endpoint_security,
     generate_endpoint_summary
 )
+from services.history_service import HistoryService
 
 router = APIRouter()
+history_service = HistoryService()
 
 
 class AnalysisRequest(BaseModel):
@@ -208,28 +210,33 @@ async def analyze_full_route(request: AnalysisRequest) -> Dict:
         # Generate summary
         summary = generate_endpoint_summary(endpoints)
         
-        return {
+        # Format response for frontend
+        response_data = {
             "status": "success",
-            "source_url": request.url,
-            "analysis": {
-                "endpoints": {
-                    "found": len(endpoints),
-                    "data": endpoints[:10],
-                    "summary": summary
-                },
-                "authentication": {
-                    "primary": auth_info['primary'],
-                    "methods": auth_info['methods'],
-                    "confidence": auth_info['confidence']
-                },
-                "response_format": {
-                    "primary": response_format['primary'],
-                    "formats": response_format['formats']
-                },
-                "security": security
-            },
+            "source": request.url or "uploaded",
+            "endpoints": endpoints[:50],  # Limit to 50 endpoints for display
+            "endpoints_count": len(endpoints),
+            "auth_method": auth_info['primary'],
+            "auth_methods": auth_info['methods'],
+            "response_format": response_format['primary'],
+            "all_formats": response_format['formats'],
+            "rate_limited": security.get('rate_limited', False),
+            "requires_https": security.get('requires_https', False),
+            "requires_auth": security.get('requires_auth', False),
+            "cors_enabled": security.get('cors_enabled', False),
+            "security_score": "High" if security.get('requires_auth') and security.get('requires_https') else "Medium",
+            "summary": summary,
             "message": f"Complete analysis: {len(endpoints)} endpoints found, {auth_info['primary']} auth detected"
         }
+        
+        # Save to history
+        try:
+            history_service.save_analysis(request.url or "uploaded", response_data)
+        except Exception as e:
+            # Log but don't fail if history save fails
+            print(f"Warning: Could not save analysis to history: {e}")
+        
+        return response_data
     
     except Exception as e:
         raise HTTPException(

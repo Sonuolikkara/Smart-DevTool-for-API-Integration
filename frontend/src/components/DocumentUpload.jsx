@@ -1,7 +1,9 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Upload, Link as LinkIcon, Loader } from 'lucide-react';
 
 export default function DocumentUpload({ onAnalysisComplete }) {
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
   const [uploadMode, setUploadMode] = useState('file'); // 'file' or 'url'
   const [file, setFile] = useState(null);
@@ -81,6 +83,9 @@ export default function DocumentUpload({ onAnalysisComplete }) {
     setError('');
     setSuccess('');
 
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 25000);
+
     try {
       const response = await fetch('http://localhost:8000/api/documents/fetch', {
         method: 'POST',
@@ -88,6 +93,7 @@ export default function DocumentUpload({ onAnalysisComplete }) {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ url: url.trim() }),
+        signal: controller.signal,
       });
 
       if (!response.ok) {
@@ -103,19 +109,28 @@ export default function DocumentUpload({ onAnalysisComplete }) {
       
       // Trigger analysis
       if (data.content_preview) {
-        analyzeDocument(data.url, data.content_preview);
+        await analyzeDocument(data.url, data.content_preview);
+      } else {
+        throw new Error('No content preview returned from server');
       }
 
       setUrl('');
     } catch (err) {
-      setError(`❌ ${err.message}`);
+      const message = err.name === 'AbortError'
+        ? 'Fetch timed out. Try a smaller or different URL.'
+        : err.message;
+      setError(`❌ ${message}`);
       console.error('Fetch error:', err);
     } finally {
+      clearTimeout(timeoutId);
       setLoading(false);
     }
   };
 
   const analyzeDocument = async (source, preview) => {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 20000);
+
     try {
       const response = await fetch('http://localhost:8000/api/analysis/analyze-full', {
         method: 'POST',
@@ -126,14 +141,38 @@ export default function DocumentUpload({ onAnalysisComplete }) {
           documentation: preview || '',
           url: source,
         }),
+        signal: controller.signal,
       });
 
       if (response.ok) {
         const analysisData = await response.json();
-        onAnalysisComplete(analysisData);
+        
+        // Navigate to results page with analysis data
+        navigate('/results', { 
+          state: { 
+            analysis: { 
+              ...analysisData, 
+              source: source 
+            } 
+          } 
+        });
+        
+        // Also call callback if provided (for backward compatibility)
+        if (onAnalysisComplete) {
+          onAnalysisComplete(analysisData);
+        }
+      } else {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || 'Analysis failed');
       }
     } catch (err) {
+      const message = err.name === 'AbortError'
+        ? 'Analysis timed out. Try a shorter document.'
+        : err.message;
       console.error('Analysis error:', err);
+      setError(`Analysis failed: ${message}`);
+    } finally {
+      clearTimeout(timeoutId);
     }
   };
 
